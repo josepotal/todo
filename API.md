@@ -4,7 +4,8 @@ The REST API endpoint will always have its version in the URL: `/api/v1/`
 Authentication to the API is performed via HTTP Basic Auth. The client will provide an API key as the basic auth username and will not provide a password. 
 
 ##Errors
-Any HTTP Status of 4XX will represent an error and will be accompanied by an error object.
+Any HTTP Status in the range of 4XX will represent an error and will be accompanied by an error object.
+
 ```HTTP
     Status: 401 Unauthorized
 ```
@@ -135,6 +136,7 @@ $ curl https://example.com/api/v1/todos/1 \
 
 ####Accepted Data
 Must include at least one.
+
 |  Attribute   |  Type      |
 |--------------|------------|
 |   complete   |  bool      |

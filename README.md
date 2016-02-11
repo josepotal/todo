@@ -10,5 +10,5 @@ The requirements for the client apps are:
  
  The requirements for the server apps are:
  - Push changes to clients app using WebSockets or similar.
- - Full implementation of the API… that I'm yet to document.
+ - Full implementation of the API.
  - Saving To Do's to a permanent storage.
