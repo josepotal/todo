@@ -1,9 +1,13 @@
-#API
-The REST API endpoint will always have its version in the URL: `/api/v1/` 
-##Authentication
-Authentication to the API is performed via HTTP Basic Auth. The client will provide an API key as the basic auth username and will not provide a password. 
+# API
 
-##Errors
+The REST API endpoint will always have its version in the URL: `/api/v1/`
+
+## Authentication
+
+Authentication to the API is performed via HTTP Basic Auth. The client will provide an API key as the basic auth username and will not provide a password.
+
+## Errors
+
 Any HTTP Status in the range of 4XX will represent an error and will be accompanied by an error object.
 
 ```HTTP
@@ -16,20 +20,21 @@ Any HTTP Status in the range of 4XX will represent an error and will be accompan
     }
 ```
 
-##Resources
+## Resources
 
-------------------
 
-##ToDo
+## ToDo
+
 *ToDo* objects are the base of everything… as these are ToDo apps.
 
-###The ToDo Object
-|  Attribute   |  Type      |    Description   |
-|--------------|------------|------------------|
-|   id         |  int       |   |
-|   complete   |  bool      |   |
-|   name       |  string    |   | 
-|   created    |  timestamp |   |
+### The ToDo Object
+
+|  Attribute   |  Type      |             Description               |
+|--------------|------------|---------------------------------------|
+|   id         |  int       |                                       |
+|   complete   |  bool      |                                       |
+|   name       |  string    |                                       |
+|   created    |  timestamp |                                       |
 |   completed  |  timestamp |  When was marked as complete \| false |
 |   notes      |  string    |  Text that can be added as a note.    |
 
@@ -43,20 +48,25 @@ Any HTTP Status in the range of 4XX will represent an error and will be accompan
     }
 ```
 
-###Retrieve the list of ToDO's
+### Retrieve the list of ToDO's
 
-`GET /todos/`
-
-####Example Request
-```sh
-$ curl https://example.com/api/v1/todos/ \
-  -u 94558272d85d065dcfb2
+```HTTP
+GET /todos/
 ```
 
-####Response
+#### Example Request
+
+```sh
+curl https://example.com/api/v1/todos/ \
+-u 94558272d85d065dcfb2:
+```
+
+#### Response
+
 ```HTTP
     Status: 200 OK
 ```
+
 ```json
     {
         "todos": [
@@ -80,25 +90,32 @@ $ curl https://example.com/api/v1/todos/ \
     }
 ```
 
-####Parameters
+#### Parameters
+
 |   Parameter   |   Type      |   Description   |
 |---------------|-------------|-----------------|
 |   complete    |   bool      |  Will filter the list by completion status |
 |   since       |   timestamp |  Will return ToDos created at or after the specified UNIX timestamp. |
 
-###Retrieve a single ToDo
-`GET /todos/:id`
+### Retrieve a single ToDo
 
-####Example Request
-```sh
-$ curl https://example.com/api/v1/todos/1 \
-  -u 94558272d85d065dcfb2
+```HTTP
+GET /todos/:id
 ```
 
-####Response
+#### Example Request
+
+```sh
+curl https://example.com/api/v1/todos/1 \
+-u 94558272d85d065dcfb2:
+```
+
+#### Response
+
 ```HTTP
     Status: 200 OK
 ```
+
 ```json
     {
         "id": 1,
@@ -110,20 +127,26 @@ $ curl https://example.com/api/v1/todos/1 \
     }
 ```
 
-###Delete a ToDo
-`DELETE /todos/:id`
+### Delete a ToDo
 
-####Example Request
-```sh
-$ curl https://example.com/api/v1/todos/1 \
-  -u 94558272d85d065dcfb2 \
-  -X DELETE
+```HTTP
+DELETE /todos/:id
 ```
 
-####Response
+#### Example Request
+
+```sh
+curl https://example.com/api/v1/todos/1 \
+-u 94558272d85d065dcfb2: \
+-X DELETE
+```
+
+#### Response
+
 ```HTTP
     Status: 200 OK
 ```
+
 ```json
     {
         "deleted": true,
@@ -131,10 +154,14 @@ $ curl https://example.com/api/v1/todos/1 \
     }
 ```
 
-###Update a ToDo
-`PATCH /todos/:id`
+### Update a ToDo
 
-####Accepted Data
+```HTTP
+PATCH /todos/:id
+```
+
+#### Accepted Data
+
 Must include at least one.
 
 |  Attribute   |  Type      |
@@ -146,18 +173,22 @@ Must include at least one.
 |   notes      |  string    |
 
 
-####Example Request
+#### Example Request
+
 ```sh
-$ curl https://example.com/api/v1/todos/1 \
-  -u 94558272d85d065dcfb2  \
-  -d notes="It's starting to smell!"
-  -X PATCH
+curl http://localhost:3000/api/v1/todos/1 \
+-u 94558272d85d065dcfb2:  \
+-H 'Content-Type: application/json' \
+-d '{"notes":"It is starting to smell!"}' \
+-X PATCH
 ```
 
-####Response
+#### Response
+
 ```HTTP
     Status: 200 OK
 ```
+
 ```json
     {
         "id": 1,
@@ -165,14 +196,18 @@ $ curl https://example.com/api/v1/todos/1 \
         "name": "Take out the trash",
         "created": 1455151212,
         "completed": 1455171642,
-        "notes": "It's starting to smell!"
+        "notes": "It is starting to smell!"
     }
 ```
 
-###Create a ToDo
-`POST /todos/`
+### Create a ToDo
 
-####Accepted Data
+```HTTP
+POST /todos/
+```
+
+#### Accepted Data
+
 
 |  Attribute   |  Type      |  Required |
 |--------------|------------|-----------|
@@ -182,15 +217,17 @@ $ curl https://example.com/api/v1/todos/1 \
 |   completed  |  timestamp |  false    |
 |   notes      |  string    |  false    |
 
-####Example Request
+#### Example Request
+
 ```sh
-$ curl https://example.com/api/v1/todos/ \
-  -u 94558272d85d065dcfb2 \
-  -d name="Write API Docs"\
-  -d created=1455171642
+curl https://example.com/api/v1/todos/ \
+-u 94558272d85d065dcfb2: \
+-H 'Content-Type: application/json' \
+-d '{"name":"Write API Docs", "created":1455171642}'
 ```
 
-####Response
+#### Response
+
 ```HTTP
     Status: 201 Created
 ```
