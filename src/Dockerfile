@@ -10,4 +10,4 @@ EXPOSE 8000
 
 COPY . .
 
-CMD ["gunicorn", "--bind=0.0.0.0:8000", "--reload", "app.app:app"]
+CMD ["gunicorn", "--bind=0.0.0.0:8000", "--reload" ,"app.app:app"]
