@@ -1,33 +1,20 @@
 import falcon
 import json
-import uuid
 import logging
 import time
 import datetime
+import falcon_cors
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-firstId = str(uuid.uuid4().hex)
-secondId = str(uuid.uuid4().hex)
 
-todosStore = {
-    "a0a8b37ce1ee4140b12cc5bd1a59f763": {
-        "id": "a0a8b37ce1ee4140b12cc5bd1a59f763",
-        "complete": True,
-        "name": "Take out the trash",
-        "created": 1455151212,
-        "completed": 1455171642
-    },
-    "9b7d25372dd747e190a649e1975ad3ce": {
-        "id": "9b7d25372dd747e190a649e1975ad3ce",
-        "complete": False,
-        "name": "Buy tomatoes",
-        "created": 1455151252,
-        "completed": None
-    }
-}
+cors = falcon_cors.CORS(
+    allow_origins_list=['http://localhost:4200'], allow_all_methods=True, allow_all_headers=True)
 
 
 class Parent():
-    def __init__(self):
+    def __init__(self, connection):
+        self.connection = connection
         pass
 
     def get_body(self, req):
@@ -39,15 +26,35 @@ class Parent():
         except json.decoder.JSONDecodeError:
             raise falcon.HTTPError(falcon.HTTP_400, 'Malformed JSON')
 
+    def date_handler(self, obj):
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        elif obj is None:
+            return obj
+        else:
+            raise TypeError
+
 
 class Todos(Parent):
-    def __init__(self):  # constructor
-        pass
+    # def __init__(self):  # constructor
+    #     pass
 
     # on_get is because of falcon. self is becuse of python functions
+
     def on_get(self, req, resp):
+
+        cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute("SELECT * FROM todos ORDER BY created DESC")
+        todos = cursor.fetchall()
+
+        self.connection.commit()
+        cursor.close()
+        logging.warning(todos)
+
         resp.status = falcon.HTTP_200
-        resp.body = json.dumps(todosStore)
+
+        resp.body = json.dumps(todos, default=self.date_handler)
 
     # on_post is because of falcon. self is becuse of python functions
     def on_post(self, req, resp):
@@ -58,43 +65,67 @@ class Todos(Parent):
             raise falcon.HTTPError(
                 falcon.HTTP_400, 'Name field cannot be empty')
 
-        newId = uuid.uuid4().hex
-        output = {
-            "id": newId,
-            "complete": False,
-            "name": name,
-            "created": int(time.time()),
-            "completed": None
+        newTodo = {
+            "name": name
         }
 
-        todosStore[newId] = output
-        logging.warning(todosStore)
+        cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+        cursor.execute("""
+            INSERT INTO todos (name) VALUES ('{name}') RETURNING id,name, created, completed, complete
+        """.format(name=newTodo.get('name')))
+
+        # sql_string = "INSERT INTO todos (name) VALUES (%s) RETURNING id;"
+        # cursor.execute(sql_string, (newTodo.get('name')))
+
+        output = cursor.fetchone()
+        logging.warning(output)
+        self.connection.commit()
+        cursor.close()
 
         resp.status = falcon.HTTP_201
-        resp.body = json.dumps(output)
+
+        resp.body = json.dumps(output, default=self.date_handler)
 
 
 class Todo(Parent):
-    def __init__(self):  # constructor
-        pass
+    # def __init__(self):  # constructor
+    #     pass
 
-    # on_get is because of falcon. self is becuse of python functions
+    # on_get is because of falcon. self is because of python functions
     def on_get(self, req, resp, id):
         try:
-            todo = todosStore[id]
+            cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM todos WHERE id={id}
+                """.format(id=id))
+
+            todo = cursor.fetchone()
+
+            self.connection.commit()
+            cursor.close()
+            logging.warning(todos)
+
             resp.status = falcon.HTTP_200
         except KeyError:
             resp.status = falcon.HTTP_404
             todo = {}
 
-        resp.body = json.dumps(todo)
+        resp.body = json.dumps(todo, default=self.date_handler)
 
-    # on_put is because of falcon. self is becuse of python functions
+    # on_put is because of falcon. self is because of python functions
     def on_patch(self, req, resp, id):
         body = self.get_json_body(req)
 
         try:
-            todo = todosStore[id]
+            cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                SELECT * FROM todos WHERE id={id}
+                """.format(id=id))
+            todo = cursor.fetchone()
+
         except KeyError:
             resp.status = falcon.HTTP_404
             raise falcon.HTTPError(
@@ -105,8 +136,8 @@ class Todo(Parent):
         if todoId is not None:
             errors.append('Id cannot be sent')
 
-        name = body.get('name', None)
-        if name is None:
+        name = body.get('name', todo['name'])
+        if name is None and todo['name'] is None:
             errors.append('Name field cannot be empty')
         elif type(name) is not str:
             errors.append('Name must be a string')
@@ -119,11 +150,11 @@ class Todo(Parent):
             errors.append('Complete must be a boolean')
 
         created = body.get('created', None)
-        newCreated = todo['created']
+
         if created is not None:
             try:
                 datetime.datetime.fromtimestamp(created)
-            except TypeError:  # throw only this try the except if TypeError
+            except TypeError:  # throw onºy this try the except if TypeError
                 errors.append('Created time is not valid')
 
             if created >= int(time.time()):
@@ -135,8 +166,11 @@ class Todo(Parent):
         if completed is not None:
             errors.append('Completed time cannot be sent')
 
-        if todo['complete'] is False and complete is True:
-            completed = int(time.time())
+        if todo['completed'] is None and complete is True:
+            completed = datetime.datetime.now()
+
+        if todo['completed'] is None and complete is False:
+            completed = None
 
         if todo['complete'] is True and complete is False:
             completed = None
@@ -145,23 +179,90 @@ class Todo(Parent):
             "id": todo['id'],
             "complete": complete,
             "name": name,
-            "created": newCreated,
-            "completed": completed
+            "completed": completed,
         }
 
         if len(errors):
             raise falcon.HTTPError(
                 falcon.HTTP_400, 'Errors', errors)
 
-        todosStore[id] = updatedTodo
+        cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+        if complete is True:
+            cursor.execute("""
+                UPDATE todos SET name=('{name}'),completed=('{completed}'),complete=('{complete}') WHERE id = ('{id}') RETURNING id, name, created, completed, complete
+            """.format(name=updatedTodo.get('name'), completed=updatedTodo.get('completed'), complete=updatedTodo.get('complete'), id=updatedTodo.get('id')))
+        else:
+            cursor.execute("""
+                UPDATE todos SET name=('{name}'),completed=NULL,complete=('{complete}') WHERE id = ('{id}') RETURNING id, name, created, completed, complete
+            """.format(name=updatedTodo.get('name'), complete=updatedTodo.get('complete'), id=updatedTodo.get('id')))
+
+        output = cursor.fetchone()
+
+        logging.warning(output)
+        self.connection.commit()
+        cursor.close()
+
         resp.status = falcon.HTTP_201
-        resp.body = json.dumps(updatedTodo)
+        resp.body = json.dumps(output, default=self.date_handler)
+
+    def on_delete(self, req, resp, id):
+        try:
+            cursor = self.connection.cursor(cursor_factory=RealDictCursor)
+
+            cursor.execute("""
+                DELETE FROM todos WHERE id={id}
+                """.format(id=id))
+
+            self.connection.commit()
+            cursor.close()
+
+            resp.status = falcon.HTTP_200
+        except KeyError:
+            resp.status = falcon.HTTP_404
+
+        resp.body = json.dumps({"message": "deleted"})
 
 
-app = falcon.API()
+# // connection to db
+def connect_to_database():
+    def _do_connnect():
+        logging.warning('trying to connect')
+        connection = psycopg2.connect(
+            dbname='todos',
+            user='postgres',
+            password='',
+            host='database'
+        )
+        return connection
 
-todos = Todos()
-todo = Todo()
+    tries = 0
+    connection = False
+
+    while not connection:
+        try:
+            connection = _do_connnect()
+        except psycopg2.OperationalError as e:
+            logging.warning(
+                'Database not available, waiting try: {}'.format(tries))
+
+            if tries > 5:
+                raise e
+
+            time.sleep(2)
+        finally:
+            tries += 1
+
+    logging.warning('database available')
+    return connection
+
+
+connection = connect_to_database()
+
+app = falcon.API(middleware=[cors.middleware])
+
+todos = Todos(connection)
+todo = Todo(connection)
 
 app.add_route('/todos', todos)
 app.add_route('/todos/{id}', todo)
